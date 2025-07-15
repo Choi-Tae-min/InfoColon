@@ -1,1 +1,1 @@
-# InformColon
+# InfoColon
