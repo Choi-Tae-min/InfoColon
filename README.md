@@ -3,9 +3,9 @@
 This repository contains the classification dataset and related utilities for the InfoColon project.
 
 ## Table of Contents
-- [Requirements](#requirements)
-- [Dataset](#dataset)
-- [Usage](#usage)
+1. [Requirements](#Requirements)
+2. [Dataset](#Dataset)
+3. [Usage](#Usage)
 
 ## Requirements
 - We recommend using a machine with **two GPUs**.
