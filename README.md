@@ -1,53 +1,144 @@
-# InfoColon
+# 📦 InfoColon
 
-This repository contains the classification dataset and related utilities for the InfoColon project.
+This repository contains the classification dataset and related training utilities for the **InfoColon** project, designed for informative frame classification in colonoscopy.
 
-## Table of Contents
-1. [Requirements](#Requirements)
-2. [Dataset](#Dataset)
-3. [Usage](#Usage)
+---
 
-## Requirements
-- We recommend using a machine with **two GPUs**.
-- Install required pip packages with their **latest** versions.
-- pip install timm pandas torch torchvision matplotlib scikit-learn
+## 📚 Table of Contents
 
-## Dataset
-Details about the dataset will be provided here.
+1. [Requirements](#requirements)
+2. [Dataset Structure](#dataset-structure)
+3. [Usage](#usage)
+    - [Data Split](#data-split)
+    - [Training Options](#training-options)
+    - [Testing](#testing)
 
-## Usage
-if you download all data or specific data,
+---
+
+## ⚙️ Requirements
+
+- We recommend using a machine with **two GPUs** for efficient training.
+- Install all necessary packages using:
+
+```bash
+pip install timm pandas torch torchvision matplotlib scikit-learn
+```
+
+---
+
+## 📂 Dataset Structure
+
+Detailed information about the dataset structure and labels will be provided here.
+
+---
+
+## 🚀 Usage
+
+### 🔹 Data Split
+
+Before training, split the dataset using:
+
+```bash
 python data_split.py
+```
 
-There is 4 option to training
-1. Supervised learning
-if you can bash file then,
-bash Superviesed_learning.sh
-but you can't then,
+---
+
+## 🧠 Training Options
+
+We provide **four training strategies**, and each has separate code for **2-class, 6-class, and 7-class** classification.
+
+You can either use the bash scripts (recommended) or run each Python script manually.
+
+---
+
+### 1. Supervised Learning
+
+**Bash (recommended):**
+
+```bash
+bash Supervised_learning.sh
+```
+
+**Manual:**
+
+```bash
 python Supervised_2class.py
 python Supervised_6class.py
-python Superviesed_7class.py
-2. Semi-supervised learning(Pseudo-labeling)
-if you can bash file then,
-bash Semi_superviesed_learning.sh
-but you can't then,
+python Supervised_7class.py
+```
+
+---
+
+### 2. Semi-Supervised Learning (Pseudo-labeling)
+
+**Bash (recommended):**
+
+```bash
+bash Semi_supervised_learning.sh
+```
+
+**Manual:**
+
+```bash
 python Semi_supervised_2class.py
 python Semi_supervised_6class.py
-python Semi_superviesed_7class.py
-3. Active learning(BALD, Baseyian Active Learning by Disagreement)
-if you can bash file then,
+python Semi_supervised_7class.py
+```
+
+---
+
+### 3. Active Learning - BALD  
+*(Bayesian Active Learning by Disagreement)*
+
+**Bash (recommended):**
+
+```bash
 bash Active_learning_BALD.sh
-but you can't then,
+```
+
+**Manual:**
+
+```bash
 python BALD_2class.py
 python BALD_6class.py
 python BALD_7class.py
-4. Active learning(AD-BALD, Adaptive threshold BALD)
-if you can bash file then,
+```
+
+---
+
+### 4. Active Learning - AD-BALD  
+*(Adaptive Threshold BALD - our proposed method)*
+
+**Bash (recommended):**
+
+```bash
 bash Active_learning_ADBALD.sh
-but you can't then,
+```
+
+**Manual:**
+
+```bash
 python ADBALD_2class.py
 python ADBALD_6class.py
 python ADBALD_7class.py
+```
 
-if you only inference data,
+---
+
+## 🧪 Testing
+
+> **Note:** Training and test code are implemented **separately** for flexibility.
+
+To evaluate on the test dataset, use:
+
+```bash
 python inference.py
+```
+
+This will load the trained model and generate performance metrics on the test set.
+
+---
+
+Feel free to open an issue if you encounter any problems!
+
