@@ -10,6 +10,7 @@ This repository contains the classification dataset and related utilities for th
 ## Requirements
 - We recommend using a machine with **two GPUs**.
 - Install required pip packages with their **latest** versions.
+- pip install timm pandas torch torchvision matplotlib scikit-learn
 
 ## Dataset
 Details about the dataset will be provided here.
