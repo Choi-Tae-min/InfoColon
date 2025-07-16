@@ -22,25 +22,26 @@ import timm
 # ===========================================
 parser = argparse.ArgumentParser()
 parser.add_argument('--num_classes', type=int, choices=[2, 6, 7], default=2)
-parser.add_argument('--method', type=str, choices=['bald', 'ad_bald'], default='ad_bald')
+parser.add_argument('--method', type=str, choices=['bald', 'ad_bald'], default='bald')
 parser.add_argument('--patience', type=int, default=10)
 parser.add_argument('--rounds', type=int, default=21)
+# 아래 세 인자는 method에 따라 자동 설정됩니다
 parser.add_argument('--random_sample', type=int, default=None)
 parser.add_argument('--topk', type=int, default=None)
 parser.add_argument('--threshold', type=float, default=None)
-parser.add_argument('--batch_size', type=int, default=1024)
+parser.add_argument('--batch_size', type=int, default=512)
 parser.add_argument('--num_workers', type=int, default=24)
-parser.add_argument('--gpus', type=int, choices=[1, 2], default=2)
-parser.add_argument('--train_dir', type=str, default='/home/test/colonoscopy/data/class2/train/')
-parser.add_argument('--val_dir', type=str, default='/home/test/colonoscopy/data/class2/val/')
-parser.add_argument('--test_dir', type=str, default='/home/test/colonoscopy/data/class2/test/')
+parser.add_argument('--gpus', type=int, choices=[1,2,3,4], default=1)
+parser.add_argument('--train_dir', type=str, default='/home/test/colonoscopy/data/train/')
+parser.add_argument('--val_dir', type=str, default='/home/test/colonoscopy/data/val/')
+parser.add_argument('--test_dir', type=str, default='/home/test/colonoscopy/data/test/')
 parser.add_argument('--unlabeled_dir', type=str, default='/home/test/colonoscopy/data/unlabeled/')
 args = parser.parse_args()
 
 # 클래스 기본값 설정
 class_defaults = {
-    2: {'sample_size': 6000, 'topk': 600, 'threshold': 0.3},
-    6: {'sample_size': 4000, 'topk': 400, 'threshold': 0.7},
+    2: {'sample_size': 6000, 'topk': 4000, 'threshold': 0.5},
+    6: {'sample_size': 4000, 'topk': 3000, 'threshold': 0.7},
     7: {'sample_size': 6000, 'topk': 4000, 'threshold': 0.7},
 }
 defs = class_defaults[args.num_classes]
@@ -266,7 +267,7 @@ def update_training_data(train_dataset, queried_data):
 # =============================
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = timm.create_model('vit_small_patch16_224', pretrained=True, num_classes=args.num_classes)
-if args.gpus == 2:
+if args.gpus >= 2:
     model = nn.DataParallel(model).to(device)
 else:
     model = model.to(device)
@@ -276,15 +277,19 @@ criterion = nn.CrossEntropyLoss()
 
 # =============================
 # Query 방식 출력 및 Query 변수 파싱
+# BALD: random_sample + topk 사용
+# AD-BALD: random_sample + threshold 사용
 # =============================
 if args.method == 'bald':
     print("Query: BALD")
+    print(f"random_sample={sample_size}, topk={topk}")
     if args.topk is None:
         topk = defs['topk']
     if args.random_sample is None:
         sample_size = defs['sample_size']
 elif args.method == 'ad_bald':
     print("Query: AD-BALD")
+    print(f"random_sample={sample_size}, threshold={threshold}")
     if args.threshold is None:
         threshold = defs['threshold']
     if args.random_sample is None:
