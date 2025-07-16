@@ -28,14 +28,14 @@ parser.add_argument('--test_dir', type=str, required=True)
 parser.add_argument('--unlabeled_dir', type=str, required=True)
 parser.add_argument('--save_dir', type=str, default='results/pseudo_ssl')
 parser.add_argument('--model_name', type=str, default='vit_small_patch16_224')
-parser.add_argument('--threshold', type=float, default=0.95)
+parser.add_argument('--threshold', type=float, default=0.99)
 parser.add_argument('--num_classes', type=int, default=2, choices=[2, 6, 7])
-parser.add_argument('--gpus', type=str, default="0")
+parser.add_argument('--gpus', type=str, default="0,1,2,3")
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--rounds', type=int)
 parser.add_argument('--samples_per_round', type=int)
-parser.add_argument('--batch_size', type=int, default=128)
-parser.add_argument('--num_workers', type=int, default=8)
+parser.add_argument('--batch_size', type=int, default=2048)
+parser.add_argument('--num_workers', type=int, default=24)
 parser.add_argument('--patience', type=int, default=5)
 args = parser.parse_args()
 
@@ -181,51 +181,63 @@ class EarlyStopping:
 
 def evaluate_model(model, dataloader, round_num=None):
     model.eval()
-    all_preds, all_labels = [], []
+    y_true, y_pred, y_probs = [], [], []
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            probs = nn.functional.softmax(outputs, dim=1)
+            preds = torch.argmax(probs, 1)
+
+            y_true.extend(labels.numpy())
+            y_pred.extend(preds.cpu().numpy())
+            y_probs.extend(probs.cpu().numpy())
+
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    y_probs = np.array(y_probs)
+
+    acc = (y_pred == y_true).mean()
+    f1 = f1_score(y_true, y_pred, average='macro')
+    prec = precision_score(y_true, y_pred, average='macro')
+    recall = recall_score(y_true, y_pred, average='macro')
+
+    try:
+        if args.num_classes == 2:
+            auroc = roc_auc_score(y_true, y_probs[:, 1])
+        else:
+            auroc = roc_auc_score(y_true, y_probs, multi_class='ovr', average='macro')
+    except:
+        auroc = 'N/A'
+    # Confusion Matrix 저장
+    cm = confusion_matrix(y_true, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
+    plt.title(f'Confusion Matrix - {round_num}')
+    plt.xlabel('Predicted')
+    plt.ylabel('True')
+    os.makedirs(args.save_dir, exist_ok=True)
+    plt.savefig(os.path.join(args.save_dir, f'confusion_matrix_{round_num}.png'))
+    plt.close()
+
+    print(f"Confusion Matrix:\n{cm}")
+    print(f"Accuracy:  {acc*100:.2f}%")
+    print(f"F1-score:  {f1:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall:    {recall:.4f}")
+    print(f"AUROC:     {auroc if auroc != 'N/A' else 'N/A'}")
+
+    return acc, f1, prec, recall, auroc, cm
+def compute_accuracy_only(model, dataloader):
+    model.eval()
+    correct = total = 0
     with torch.no_grad():
         for inputs, labels in dataloader:
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             preds = torch.argmax(outputs, 1)
-            all_preds.extend(preds.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    acc = np.mean(np.array(all_preds) == np.array(all_labels))
-    f1 = f1_score(all_labels, all_preds, average='weighted')
-    precision = precision_score(all_labels, all_preds, average='weighted')
-    recall = recall_score(all_labels, all_preds, average='weighted')
-    cm = confusion_matrix(all_labels, all_preds)
-
-    try:
-        auroc = roc_auc_score(
-            all_labels,
-            nn.functional.one_hot(torch.tensor(all_preds), num_classes=args.num_classes),
-            multi_class='ovr' if args.num_classes > 2 else 'raise'
-        )
-    except Exception:
-        auroc = -1
-
-    # ---------------------- Confusion Matrix Save ----------------------
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                xticklabels=class_names, yticklabels=class_names)
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title(f'Confusion Matrix (Round {round_num if round_num is not None else "final"})')
-    os.makedirs(args.save_dir, exist_ok=True)
-    plt.savefig(os.path.join(args.save_dir, f'confusion_matrix_round{round_num if round_num is not None else "final"}.png'))
-    plt.close()
-
-    # ---------------------- Print Metrics ----------------------
-    print("Confusion Matrix:\n", cm)
-    print(f"Accuracy:  {acc*100:.2f}%")
-    print(f"F1-score:  {f1:.4f}")
-    print(f"Precision: {precision:.4f}")
-    print(f"Recall:    {recall:.4f}")
-    print(f"AUROC:     {auroc:.4f}" if auroc != -1 else "AUROC:     N/A")
-
-    return acc, f1, precision, recall, auroc, cm
-
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+    return correct / total
 def train_model(model, train_loader, val_loader):
     early_stopping = EarlyStopping(patience=args.patience, verbose=True)
     for epoch in range(100):
@@ -236,12 +248,18 @@ def train_model(model, train_loader, val_loader):
             loss = criterion(model(inputs), labels)
             loss.backward()
             optimizer.step()
-        val_acc = evaluate_model(model, val_loader)
-        print(f"Epoch {epoch+1} - Val Acc: {val_acc:.2f}%")
+
+        # ✅ train accuracy만 간단히 출력
+        train_acc = compute_accuracy_only(model, train_loader)
+        # ✅ validation은 full 평가
+        val_acc= compute_accuracy_only(model, val_loader)
+
+        print(f"Epoch {epoch+1} - Train Acc: {train_acc*100:.2f}%, Val Acc: {val_acc*100:.2f}%")
         early_stopping(val_acc, model)
         if early_stopping.early_stop:
             print(">>> Early stopping.")
             break
+
     model.load_state_dict(early_stopping.best_model_wts)
     return model
 
