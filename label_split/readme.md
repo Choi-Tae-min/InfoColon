@@ -11,7 +11,7 @@ If you have downloaded our open dataset, you will find video files and Excel lab
 To split the videos based on their labels:
 
 1. Run `split_video_excel.py`  
-   → This script organizes all video and Excel files into a `video_excel` folder.
+   → This script organizes all video and Excel files into a `video` folder and 'excel' folder.
 
 2. Run `split_video_label.py`  
    → This script splits the videos according to the corresponding label information in the Excel files.
