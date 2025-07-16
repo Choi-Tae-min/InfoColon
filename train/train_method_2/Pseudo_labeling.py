@@ -107,7 +107,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 gpu_count = torch.cuda.device_count()
 
-class_names_all = ['informative', 'bad_light', 'blurry', 'bubble', 'obstacles', 'tool', 'wall']
+class_names_all = ['bad_light', 'blurry', 'bubble', 'obstacles', 'tool', 'wall','informative']
 if args.num_classes == 2:
     class_names = ['informative', 'uninformative']
     if args.rounds is None:
@@ -117,15 +117,15 @@ if args.num_classes == 2:
 elif args.num_classes == 6:
     class_names = [cls for cls in class_names_all if cls != 'informative']
     if args.rounds is None:
-        args.rounds = 15
+        args.rounds = 12
     if args.samples_per_round is None:
         args.samples_per_round = 4000
 else:
     class_names = class_names_all
     if args.rounds is None:
-        args.rounds = 10
+        args.rounds = 21
     if args.samples_per_round is None:
-        args.samples_per_round = 3000
+        args.samples_per_round = 6000
 
 # ---------------------- Transforms ----------------------
 train_transform = transforms.Compose([
