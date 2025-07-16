@@ -19,7 +19,7 @@ from sklearn.metrics import classification_report, confusion_matrix, roc_auc_sco
 import seaborn as sns
 import matplotlib.pyplot as plt
 from timm import create_model
-
+from collections import Counter
 # ---------------------- Argument Parsing ----------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('--train_dir', type=str, required=True)
@@ -28,14 +28,14 @@ parser.add_argument('--test_dir', type=str, required=True)
 parser.add_argument('--unlabeled_dir', type=str, required=True)
 parser.add_argument('--save_dir', type=str, default='results/pseudo_ssl')
 parser.add_argument('--model_name', type=str, default='vit_small_patch16_224')
-parser.add_argument('--threshold', type=float, default=0.99)
+parser.add_argument('--threshold', type=float, default=0.95)
 parser.add_argument('--num_classes', type=int, default=2, choices=[2, 6, 7])
 parser.add_argument('--gpus', type=str, default="0,1,2,3")
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--rounds', type=int)
 parser.add_argument('--samples_per_round', type=int)
 parser.add_argument('--batch_size', type=int, default=2048)
-parser.add_argument('--num_workers', type=int, default=24)
+parser.add_argument('--num_workers', type=int, default=36)
 parser.add_argument('--patience', type=int, default=5)
 args = parser.parse_args()
 
@@ -240,7 +240,7 @@ def compute_accuracy_only(model, dataloader):
     return correct / total
 def train_model(model, train_loader, val_loader):
     early_stopping = EarlyStopping(patience=args.patience, verbose=True)
-    for epoch in range(100):
+    for epoch in range(50):
         model.train()
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
@@ -264,7 +264,7 @@ def train_model(model, train_loader, val_loader):
     return model
 
 # ---------------------- Pseudo-labeling ----------------------
-def generate_pseudo_labels(model, dataloader, threshold):
+def generate_pseudo_labels(model, dataloader, threshold, round_num=None):
     model.eval()
     pseudo_imgs, pseudo_lbls = [], []
     with torch.no_grad():
@@ -274,9 +274,14 @@ def generate_pseudo_labels(model, dataloader, threshold):
             max_probs, preds = torch.max(probs, 1)
             mask = max_probs > threshold
             pseudo_imgs.extend(inputs[mask].cpu())
-            pseudo_lbls.extend(preds[mask].cpu())
-    return pseudo_imgs, pseudo_lbls
+            pseudo_lbls.extend(preds[mask].cpu().tolist())  # 🔥 핵심 수정
 
+    # 클래스별 라벨 분포 출력
+    class_count = Counter(pseudo_lbls)
+    print(f"[Pseudo-Labeling] Round {round_num}: 추가된 샘플 수 = {len(pseudo_lbls)}")
+    print(f"[Pseudo-Labeling] 클래스 분포 = {dict(class_count)}")
+
+    return pseudo_imgs, pseudo_lbls
 # ---------------------- Main Loop ----------------------
 print("==> Start Initial Training")
 model = train_model(model, train_loader, val_loader)
