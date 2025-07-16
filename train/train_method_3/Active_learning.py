@@ -128,11 +128,145 @@ val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, 
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
 # =============================
+# 학습 함수 및 쿼리 함수 정의 (누락 복구)
+# =============================
+
+class EarlyStopping:
+    def __init__(self, patience=10, verbose=False):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_loss = None
+        self.early_stop = False
+        self.best_model_wts = None
+
+    def __call__(self, val_loss, model):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+            self.best_model_wts = copy.deepcopy(model.state_dict())
+        elif val_loss < self.best_loss:
+            self.best_loss = val_loss
+            self.best_model_wts = copy.deepcopy(model.state_dict())
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+
+    def load_best_model(self, model):
+        if self.best_model_wts is not None:
+            model.load_state_dict(self.best_model_wts)
+
+def train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs, patience=10):
+    best_acc = 0
+    best_model_wts = copy.deepcopy(model.state_dict())
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+    for epoch in range(epochs):
+        model.train()
+        total_loss = 0
+        correct = 0
+        total = 0
+        for inputs, labels, _ in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == labels).sum().item()
+            total += labels.size(0)
+        val_acc, val_loss = evaluate_model(model, val_loader, device, criterion)
+        if val_acc > best_acc:
+            best_acc = val_acc
+            best_model_wts = copy.deepcopy(model.state_dict())
+            torch.save(model.state_dict(), f'./best_model_{args.num_classes}class.pth')
+        early_stopping(val_loss, model)
+        if early_stopping.early_stop:
+            print("Early stopping")
+            break
+    early_stopping.load_best_model(model)
+    return model
+
+def evaluate_model(model, test_loader, device, criterion):
+    model.eval()
+    correct = 0
+    total = 0
+    total_loss = 0
+    with torch.no_grad():
+        for images, labels, _ in test_loader:
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item()
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    avg_loss = total_loss / len(test_loader)
+    accuracy = 100 * correct / total
+    return accuracy, avg_loss
+
+def adjust_threshold(current_accuracy, previous_accuracy, threshold, adjustment_factor=0.1, max_threshold=0.9, min_threshold=0.3, change_factor=0.7):
+    accuracy_change = current_accuracy - previous_accuracy
+    if accuracy_change > change_factor:
+        threshold += adjustment_factor
+    elif accuracy_change < -change_factor:
+        threshold -= adjustment_factor
+    return max(min(threshold, max_threshold), min_threshold)
+
+def predict_prob_dropout_split(model, data_loader, n_drop, device):
+    model.train()
+    all_probs = []
+    for _ in range(n_drop):
+        probs = []
+        for images, _, _ in data_loader:
+            images = images.to(device)
+            with torch.no_grad():
+                outputs = model(images)
+                probs_batch = F.softmax(outputs, dim=1)
+                probs.append(probs_batch)
+        all_probs.append(torch.cat(probs, dim=0))
+    return torch.stack(all_probs)
+
+def bald_query_topk(model, samples_loader, n_drop=15, top_k=4000, device='cuda'):
+    probs = predict_prob_dropout_split(model, samples_loader, n_drop, device)
+    pb = probs.mean(0)
+    entropy1 = -(pb * torch.log(pb)).sum(1)
+    entropy2 = -(probs * torch.log(probs)).sum(2).mean(0)
+    uncertainties = entropy1 - entropy2
+    topk_indices = torch.topk(uncertainties, top_k).indices
+    print(f"Top-{top_k} data points selected with highest uncertainty")
+    return topk_indices
+
+def bald_query_with_threshold(model, samples_loader, n_drop=15, uncertainty_threshold=0.3, device='cuda'):
+    probs = predict_prob_dropout_split(model, samples_loader, n_drop, device)
+    pb = probs.mean(0)
+    entropy1 = -(pb * torch.log(pb)).sum(1)
+    entropy2 = -(probs * torch.log(probs)).sum(2).mean(0)
+    uncertainties = entropy1 - entropy2
+    query_indices = (uncertainties > uncertainty_threshold).nonzero(as_tuple=True)[0]
+    print(f"uncertainty_threshold: {uncertainty_threshold}, selected: {len(query_indices)} samples")
+    return query_indices
+
+def update_training_data(train_dataset, queried_data):
+    new_paths = [x[2] for x in queried_data]
+    new_labels = [x[1] for x in queried_data]
+    for path, label in zip(new_paths, new_labels):
+        if path not in train_dataset.filepaths:
+            train_dataset.filepaths.append(path)
+            train_dataset.labels.append(label)
+    print(f"Added {len(new_paths)} samples")
+    return train_dataset
+
+# =============================
 # Model 설정
 # =============================
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = timm.create_model('vit_small_patch16_224', pretrained=True, num_classes=args.num_classes)
-if args.gpus => 2:
+if args.gpus == 2:
     model = nn.DataParallel(model).to(device)
 else:
     model = model.to(device)
@@ -141,9 +275,25 @@ optimizer = optim.AdamW(model.parameters(), lr=0.0001)
 criterion = nn.CrossEntropyLoss()
 
 # =============================
+# Query 방식 출력 및 Query 변수 파싱
+# =============================
+if args.method == 'bald':
+    print("Query: BALD")
+    if args.topk is None:
+        topk = defs['topk']
+    if args.random_sample is None:
+        sample_size = defs['sample_size']
+elif args.method == 'ad_bald':
+    print("Query: AD-BALD")
+    if args.threshold is None:
+        threshold = defs['threshold']
+    if args.random_sample is None:
+        sample_size = defs['sample_size']
+
+# =============================
 # Active Learning Loop
 # =============================
-print("Starting initial training...")
+print(f"Starting initial training... (Initial size: {len(train_dataset)})")
 train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=100, patience=args.patience)
 print("Initial training complete.")
 initial_test_accuracy, _ = evaluate_model(model, test_loader, device, criterion)
@@ -181,6 +331,7 @@ for idx in range(args.rounds):
 
     queried_data = [random_samples[i] for i in query_indices]
     train_dataset = update_training_data(train_dataset, queried_data)
+    print(f"New training size after round {idx + 1}: {len(train_dataset)}")
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
     train_model(model, train_loader, val_loader, criterion, optimizer, device, epochs=100, patience=args.patience)
 
