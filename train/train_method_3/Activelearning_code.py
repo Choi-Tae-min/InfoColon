@@ -132,7 +132,7 @@ test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False
 # =============================
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = timm.create_model('vit_small_patch16_224', pretrained=True, num_classes=args.num_classes)
-if args.gpus == 2:
+if args.gpus => 2:
     model = nn.DataParallel(model).to(device)
 else:
     model = model.to(device)
