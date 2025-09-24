@@ -1,6 +1,7 @@
 # 📦 InfoColon
 
 This repository contains the classification dataset and related training utilities for the **InfoColon** project, designed for informative frame classification in colonoscopy.
+Please note that the code may undergo further revisions in the future.
 
 ---
 
