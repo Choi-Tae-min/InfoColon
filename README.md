@@ -49,80 +49,32 @@ python data_split.py
 
 We provide **four training strategies**, and each has separate code for **2-class, 6-class, and 7-class** classification.
 
-You can either use the bash scripts (recommended) or run each Python script manually.
+You can run each Python script.
 
 ---
 
 ### 1. Supervised Learning
 
-**Bash (recommended):**
+We provide Supervised Learning train code in train
 
-```bash
-bash Supervised_learning.sh
 ```
-
-**Manual:**
-
-```bash
-python Supervised_2class.py
-python Supervised_6class.py
-python Supervised_7class.py
+python supervised_code.py
 ```
 
 ---
 
 ### 2. Semi-Supervised Learning (Pseudo-labeling)
 
-**Bash (recommended):**
-
-```bash
-bash Semi_supervised_learning.sh
-```
-
-**Manual:**
-
-```bash
-python Semi_supervised_2class.py
-python Semi_supervised_6class.py
-python Semi_supervised_7class.py
+'''
+python Pseudo_labeling_code.py
 ```
 
 ---
 
-### 3. Active Learning - BALD  
-*(Bayesian Active Learning by Disagreement)*
+### 3. Active Learning - BALD  (Bayesian Active Learning by Disagreement) & AD-BALD (Accuracy Driven-BALD)
 
-**Bash (recommended):**
-
-```bash
-bash Active_learning_BALD.sh
 ```
-
-**Manual:**
-
-```bash
-python BALD_2class.py
-python BALD_6class.py
-python BALD_7class.py
-```
-
----
-
-### 4. Active Learning - AD-BALD  
-*(Adaptive Threshold BALD - our proposed method)*
-
-**Bash (recommended):**
-
-```bash
-bash Active_learning_ADBALD.sh
-```
-
-**Manual:**
-
-```bash
-python ADBALD_2class.py
-python ADBALD_6class.py
-python ADBALD_7class.py
+python Active_learning_code.py
 ```
 
 ---
