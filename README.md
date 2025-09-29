@@ -65,7 +65,7 @@ python supervised_code.py
 
 ### 2. Semi-Supervised Learning (Pseudo-labeling)
 
-'''
+```
 python Pseudo_labeling_code.py
 ```
 
