@@ -209,7 +209,7 @@ def evaluate_model(model, dataloader, round_num=None):
             auroc = roc_auc_score(y_true, y_probs, multi_class='ovr', average='macro')
     except:
         auroc = 'N/A'
-    # Confusion Matrix 저장
+    # Confusion Matrix save
     cm = confusion_matrix(y_true, y_pred)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=class_names, yticklabels=class_names)
     plt.title(f'Confusion Matrix - {round_num}')
@@ -249,9 +249,9 @@ def train_model(model, train_loader, val_loader):
             loss.backward()
             optimizer.step()
 
-        # ✅ train accuracy만 간단히 출력
+        # ✅ train accuracy simple output
         train_acc = compute_accuracy_only(model, train_loader)
-        # ✅ validation은 full 평가
+        # ✅ validation full evaluation
         val_acc= compute_accuracy_only(model, val_loader)
 
         print(f"Epoch {epoch+1} - Train Acc: {train_acc*100:.2f}%, Val Acc: {val_acc*100:.2f}%")
@@ -278,8 +278,8 @@ def generate_pseudo_labels(model, dataloader, threshold, round_num=None):
 
     # 클래스별 라벨 분포 출력
     class_count = Counter(pseudo_lbls)
-    print(f"[Pseudo-Labeling] Round {round_num}: 추가된 샘플 수 = {len(pseudo_lbls)}")
-    print(f"[Pseudo-Labeling] 클래스 분포 = {dict(class_count)}")
+    print(f"[Pseudo-Labeling] Round {round_num}: Added sample number = {len(pseudo_lbls)}")
+    print(f"[Pseudo-Labeling] class count = {dict(class_count)}")
 
     return pseudo_imgs, pseudo_lbls
 # ---------------------- Main Loop ----------------------
