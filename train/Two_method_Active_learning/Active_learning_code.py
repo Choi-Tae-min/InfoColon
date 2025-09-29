@@ -1,4 +1,4 @@
-# 전체 실행 스크립트 통합본 with argparse + BALD/AD-BALD 선택
+
 import os
 import argparse
 import numpy as np
@@ -25,7 +25,6 @@ parser.add_argument('--num_classes', type=int, choices=[2, 6, 7], default=2)
 parser.add_argument('--method', type=str, choices=['bald', 'ad_bald'], default='bald')
 parser.add_argument('--patience', type=int, default=10)
 parser.add_argument('--rounds', type=int, default=21)
-# 아래 세 인자는 method에 따라 자동 설정됩니다
 parser.add_argument('--random_sample', type=int, default=None)
 parser.add_argument('--topk', type=int, default=None)
 parser.add_argument('--threshold', type=float, default=None)
@@ -38,7 +37,7 @@ parser.add_argument('--test_dir', type=str, default='/home/test/colonoscopy/data
 parser.add_argument('--unlabeled_dir', type=str, default='/home/test/colonoscopy/data/unlabeled/')
 args = parser.parse_args()
 
-# 클래스 기본값 설정
+# class default
 class_defaults = {
     2: {'sample_size': 6000, 'topk': 4000, 'threshold': 0.5},
     6: {'sample_size': 4000, 'topk': 3000, 'threshold': 0.7},
@@ -60,7 +59,7 @@ torch.cuda.manual_seed(42)
 torch.cuda.manual_seed_all(42)
 
 # =============================
-# Dataset 클래스 수정 (2-class일 경우 uninformative 자동 통합)
+# Dataset class (2-class uninformative Automatically combine )
 # =============================
 class ImageDataset(Dataset):
     def __init__(self, base_dir, categories, transform=None, labeled=True):
@@ -116,7 +115,7 @@ test_transform = transforms.Compose([
 ])
 
 # =============================
-# DataLoader 설정
+# DataLoader setting
 # =============================
 categories = ['bad_light', 'blurry', 'bubble', 'obstacles', 'tool', 'wall', 'informative'][-args.num_classes:]
 train_dataset = ImageDataset(args.train_dir, categories, transform=train_transform)
@@ -129,7 +128,7 @@ val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, 
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
 # =============================
-# 학습 함수 및 쿼리 함수 정의 (누락 복구)
+# Training and Query Function Definitions
 # =============================
 
 class EarlyStopping:
@@ -263,7 +262,7 @@ def update_training_data(train_dataset, queried_data):
     return train_dataset
 
 # =============================
-# Model 설정
+# Model Setting
 # =============================
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = timm.create_model('vit_small_patch16_224', pretrained=True, num_classes=args.num_classes)
@@ -276,9 +275,9 @@ optimizer = optim.AdamW(model.parameters(), lr=0.0001)
 criterion = nn.CrossEntropyLoss()
 
 # =============================
-# Query 방식 출력 및 Query 변수 파싱
-# BALD: random_sample + topk 사용
-# AD-BALD: random_sample + threshold 사용
+# Reporting query strategies and parsing query parameters
+# BALD: apply random_sample followed by top-k selection
+# AD-BALD: apply random_sample with a confidence threshold
 # =============================
 if args.method == 'bald':
     print("Query: BALD")
@@ -309,7 +308,7 @@ train_sizes = [len(train_dataset)]
 used_indices = set()
 previous_accuracy = initial_test_accuracy
 
-# 평가 지표 저장용
+# Evaluation data save
 f1_scores = []
 precisions = []
 recalls = []
