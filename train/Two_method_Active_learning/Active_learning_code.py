@@ -100,7 +100,7 @@ class ImageDataset(Dataset):
         return img, label, self.filepaths[idx]
 
 # =============================
-# Transform 설정
+# Transform setting
 # =============================
 train_transform = transforms.Compose([
     transforms.Resize((224, 224)),
