@@ -10,11 +10,11 @@ If you have downloaded our open dataset, you will find video files and Excel lab
 
 To split the videos based on their labels:
 
-1. Run `split_video_excel.py`  
-   → This script organizes all video and Excel files into a `video` folder and 'excel' folder.
+1. Run `videoframe.py`  
+   → This script extracts frames from each video and organizes them into individual frame folders.
 
-2. Run `split_video_label.py`  
-   → This script splits the videos according to the corresponding label information in the Excel files.
+2. Run `split_frame_label.py`  
+   → This script reorganizes the extracted frames into folders according to the label information in the Excel files.
 
 ---
 
@@ -33,11 +33,11 @@ To split and organize OpenDataset labels:
 ## 📌 Example
 
 ```bash
-# Step 1: Organize video and Excel files
-python split_video_excel.py --input_folder ./raw_data
+# Step 1: Extract video to frame and save each frame folder
+python videoframe.py --root ./where_you_save_our_hospital_data_folder(SNUH_Colonscopy, CNUH_Colonoscopy) --mode scaled_time --start-sec 0 --save-images 1
 
 # Step 2: Split by video label
-python split_video_label.py --input_folder ./video_excel
+python split_frame_label.py --root ./where_you_save_our_hospital_video_data_folder
 
 # Step 3: For OpenDataset
 python split_opendata_label.py --input_folder ./opendata
