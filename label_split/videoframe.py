@@ -7,20 +7,20 @@ VIDEO_EXTS = (".mp4", ".avi", ".mov", ".mkv", ".mpg", ".mpeg")
 def ensure_dir(p): os.makedirs(p, exist_ok=True)
 
 def secs_from_video(total_frames: int, fps: float, start_sec=1, step_sec=1) -> List[int]:
-    """영상 메타로부터 정수 초 리스트 생성."""
+    """Generate integer second list from video metadata."""
     if fps <= 0 or total_frames <= 0:
         return []
     max_sec = int(math.floor((total_frames - 1) / fps))
     return list(range(start_sec, max_sec + 1, step_sec))
 
 def secs_from_csv_len(csv_path: str, start_sec=1, step_sec=1) -> List[int]:
-    """CSV 길이에 강제 맞춘 정수 초 리스트 생성 (옵션 A)."""
+    """Force integer second list based on CSV length (Option A)."""
     df = pd.read_csv(csv_path)
     n = len(df)
     return [start_sec + i * step_sec for i in range(n)]
 
 def ideal_ms_of(sec: int, offset_ms: float, scale: float) -> float:
-    """목표 초의 이상적 시각(ms). scale로 스케일 보정, offset으로 평행 이동."""
+    """Ideal timestamp (ms) for the target second. Adjusted with scale and offset."""
     return sec * 1000.0 * scale + offset_ms
 
 def find_label_csv_for_video(video_path: str, csv_suffix="_Label.csv") -> Optional[str]:
@@ -33,13 +33,13 @@ def extract_one(
     video_path: str,
     start_sec: int = 1,
     step_sec: int = 1,
-    mode: str = "video",            # "video"=기본, "csv_len"=옵션A, "scaled_time"=옵션B
+    mode: str = "video",            # "video"=default, "csv_len"=Option A, "scaled_time"=Option B
     csv_for_len: Optional[str] = None,
-    offset_ms: float = 0.0,         # 공통 오프셋(ms)
-    scale: float = 1.0,             # 옵션B에서 사용(예: 59.94/60)
+    offset_ms: float = 0.0,         # Common offset (ms)
+    scale: float = 1.0,             # Used in Option B (e.g., 59.94/60)
     save_images: bool = True,
     include_last: bool = False,
-    make_map_logs: bool = True,     # 매핑/중복 리포트 만들기
+    make_map_logs: bool = True,     # Generate mapping/duplicate reports
 ):
     folder = os.path.dirname(video_path)
     base   = os.path.splitext(os.path.basename(video_path))[0]
@@ -47,7 +47,7 @@ def extract_one(
     if save_images:
         ensure_dir(outdir)
 
-    # 로그 파일
+    # log files
     map_csv_path = os.path.join(folder, f"{base}_framemap.csv")
     dup_csv_path = os.path.join(folder, f"{base}_duplicates.csv")
 
@@ -63,32 +63,32 @@ def extract_one(
         cap.release()
         return
 
-    # 목표 초 리스트 만들기
+    # Build target seconds list
     if mode == "csv_len":
         if not csv_for_len:
             csv_for_len = find_label_csv_for_video(video_path)
         if not csv_for_len or not os.path.isfile(csv_for_len):
-            print(f"[ERR] csv_len 모드인데 CSV를 찾지 못했습니다: {csv_for_len}")
+            print(f"[ERR] CSV length mode but CSV not found: {csv_for_len}")
             cap.release()
             return
         secs = secs_from_csv_len(csv_for_len, start_sec=start_sec, step_sec=step_sec)
-        print(f"[A] CSV 길이에 강제 맞춤: {len(secs)}초 (예: {secs[:5]} ...)")
+        print(f"[A] Forced to CSV length: {len(secs)}초 (예: {secs[:5]} ...)")
     else:
         secs = secs_from_video(total, fps, start_sec=start_sec, step_sec=step_sec)
-        print(f"[기본] 영상 길이 기반: {len(secs)}초 (예: {secs[:5]} ...)")
+        print(f"[Default] Based on video length: {len(secs)}초 (예: {secs[:5]} ...)")
         if mode == "scaled_time":
-            print(f"[B] 스케일 보정 사용: scale={scale:.6f}")
+            print(f"[B] Using scale correction: scale={scale:.6f}")
 
     if not secs:
         print(f"[WARN] no seconds to sample: {video_path}")
         cap.release()
         return
 
-    # 프레임 지속시간(ms)에서 경계 안정화용 여유
+    # Frame duration (ms), tolerance for stability
     frame_ms = 1000.0 / max(fps, 1.0)
     eps_ms   = max(frame_ms / 3.0, 5.0)
 
-    # 순차 스트리밍 + 최근접 선택
+   # Sequential streaming + nearest frame selection
     seq_idx  = 0
     next_i   = 0
     next_sec = secs[next_i]
@@ -144,7 +144,7 @@ def extract_one(
         prev_frame, prev_ms, prev_idx = frame, cur_ms, cur_idx
         if next_i >= len(secs): break
 
-    # 못 채운 초를 마지막 프레임으로 패딩 (옵션A에서 특히 중요)
+    # Padding missing seconds with last frame (important for Option A)
     while next_i < len(secs) and prev_frame is not None:
         out_name = f"{base}_{seq_idx:06d}.png"
         if save_images:
@@ -161,7 +161,7 @@ def extract_one(
         seq_idx += 1
         next_i  += 1
 
-    # 마지막 프레임 추가(선택)
+    # Add last frame (optional)
     if include_last and total > 0:
         cap.set(cv2.CAP_PROP_POS_FRAMES, total - 1)
         ret, last = cap.read()
@@ -184,7 +184,7 @@ def extract_one(
 
     cap.release()
 
-    # 로그/중복 리포트
+    # Save logs / duplicate reports
     if make_map_logs:
         with open(map_csv_path, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=["sec","saved_idx","actual_frame_index","pos_msec","chosen","dist_ms"])
@@ -217,9 +217,9 @@ def main():
     ap.add_argument("--start-sec", type=int, default=1)
     ap.add_argument("--step-sec", type=int, default=1)
     ap.add_argument("--mode", type=str, default="video", choices=["video","csv_len","scaled_time"],
-                    help="video=영상길이기준, csv_len=CSV행수에 강제, scaled_time=스케일 보정")
-    ap.add_argument("--offset-ms", type=float, default=0.0, help="전체 타임라인 오프셋(ms)")
-    ap.add_argument("--scale", type=float, default=1, help="스케일 보정값 (예: 59.94/60≈0.999)")
+                    help="video=video length, csv_len=force to CSV row count, scaled_time=scale correction")
+    ap.add_argument("--offset-ms", type=float, default=0.0, help="timeline offset(ms)")
+    ap.add_argument("--scale", type=float, default=1, help="scale correction (e.g., 59.94/60≈0.999)")
     ap.add_argument("--save-images", type=int, default=1)
     ap.add_argument("--include-last", type=int, default=0)
     args = ap.parse_args()
