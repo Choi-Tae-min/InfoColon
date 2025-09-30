@@ -40,5 +40,5 @@ python videoframe.py --root ./where_you_save_our_hospital_data_folder(SNUH_Colon
 python split_frame_label.py --root ./where_you_save_our_hospital_video_data_folder
 
 # Step 3: For OpenDataset
-python split_opendata_label.py --input_folder ./opendata
+python opendata_split.py --input_folder ./opendata
 
