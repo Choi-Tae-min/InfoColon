@@ -55,8 +55,6 @@ You can run each Python script.
 
 ### 1. Supervised Learning
 
-We provide Supervised Learning train code in train
-
 ```
 python supervised_code.py
 ```
