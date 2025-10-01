@@ -57,6 +57,13 @@ Endomapper
 python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_endomapper_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
 ```
 
+LDPolyps
+If you are using the original LDPolyps dataset, please rename the image folders to TrainValid and Test before running this code.
+
+```bash
+python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_LDPolyps_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
+```
+
 Hyper-kvasir
 
 ```bash
