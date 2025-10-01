@@ -40,5 +40,20 @@ python videoframe.py --root ./where_you_save_our_hospital_data_folder(SNUH_Colon
 python split_frame_label.py --root ./where_you_save_our_hospital_video_data_folder
 
 # Step 3: For OpenDataset
-python opendata_split.py --input_folder ./opendata
+Nerthus
 
+'''
+python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_nerthus_nerthus-dataset-frames_output*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --strip-output-mode always --strip-keywords nerthus
+'''
+
+Endomapper
+
+'''
+python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_endomapper_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
+'''
+
+Hyper-kvasir
+
+'''
+python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_hyper-kvasir_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
+'''
