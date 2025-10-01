@@ -16,13 +16,12 @@ def looks_like_uuid_name(name: str) -> bool:
 
 def extract_dataset_hints(raw_path: str, excel_name: str, extra_keywords: List[str] | None = None) -> List[str]:
     """
-    CSV path/excel 파일명에서 데이터셋 힌트를 추출한다.
-    예: 'hyper-kvasir', 'ldpolyps', 'nerthus'
+    CSV path/excel hint extract
+    e.g.: 'hyper-kvasir', 'ldpolyps', 'nerthus'
     """
     base = (raw_path or '') + ' ' + (excel_name or '')
     low = base.lower()
     kws = DATASET_KEYWORDS_DEFAULT + (extra_keywords or [])
-    # 중복 제거 유지
     hints = []
     for kw in kws:
         if kw and kw not in hints and kw in low:
@@ -31,14 +30,14 @@ def extract_dataset_hints(raw_path: str, excel_name: str, extra_keywords: List[s
 
 def dataset_ok(path: Path, hints: List[str]) -> bool:
     """
-    후보 경로가 CSV에서 추출한 데이터셋 힌트(hints)를 하나라도 포함하면 OK.
-    힌트가 비어 있으면(판단 불가 시) 통과.
+    If a candidate path contains at least one dataset hint extracted from the CSV, mark it as valid.
+    If no hints are available (empty or undecidable), allow it to pass.
     """
     if not hints:
         return True
     plow = str(path).lower()
     return any(kw in plow for kw in hints)
-# ========== 경로 보정 유틸 ==========
+# ========== Path Correction Utility ==========
 
 def squash_duplicated_segments(parts):
     out = []
@@ -49,14 +48,14 @@ def squash_duplicated_segments(parts):
 
 def map_output_segments(parts):
     """
-    - 'output' → 제거
-    - 'outputN' → 'N' (숫자만 남김)
+    - 'output' → delete
+    - 'outputN' → 'N' (only number)
     """
     mapped = []
     for seg in parts:
         low = seg.lower()
         if low == "output":
-            continue  # 완전히 제거
+            continue 
         m = re.fullmatch(r"output(\d+)", low)
         if m:
             mapped.append(m.group(1))
@@ -65,9 +64,9 @@ def map_output_segments(parts):
     return mapped
 
 def canonicalize_path_like(p: Path) -> Path:
-    """중복/불필요 세그먼트 정리 + output/outputN 변환. Windows anchor 안전 처리."""
+    """Clean up duplicate/unnecessary segments and convert output/outputN. Ensure safe handling of Windows path anchors"""
     parts = list(p.parts)
-    anchor = p.anchor  # 'D:\\' 또는 '/'
+    anchor = p.anchor 
     if anchor:
         parts_wo_anchor = parts[1:] if parts and parts[0] == anchor else [seg for seg in parts if seg != anchor]
     else:
@@ -89,69 +88,69 @@ def path_should_strip_output(excel_path: Path, row_path: str, mode: str, keyword
             return True
     return False
 
-# ========== 파일명 매칭 유틸 ==========
+# ========== Filename Matching Utility ==========
 
 def normalize_case(s: str) -> str:
     return str(s).strip().lower()
 
 def extract_core_tail(name: str) -> str:
     """
-    데이터셋별 접두사가 길어도 실제 파일과 매칭되는 '핵심 꼬리'만 추출.
-    우선순위:
-    - Hyper-Kvasir: *_tool_<uuid>.ext  -> 'tool_<uuid>.ext'
-    - LDPolyps: (informative|uninformative)_####.ext
-    - 일반 숫자 꼬리: *_####.ext
-    - Nerthus: 'bowel_'부터 or score 패턴
-    - 마지막 3~4 토큰 또는 뒤 60자
+    Extract only the essential trailing part ('core suffix') of the filename to ensure matching with actual files, even if dataset-specific prefixes are long.
+
+        Priority rules:
+        
+        Hyper-Kvasir: *_tool_<uuid>.ext → keep as 'tool_<uuid>.ext'
+        
+        LDPolyps: (informative|uninformative)_####.ext
+        
+        Generic numeric suffix: *_####.ext
+        
+        Nerthus: start from 'bowel_' or follow the score pattern
+        
+        Fallback: last 3–4 tokens or last ~60 characters of the filename
     """
     s = name.strip()
     low = s.lower()
 
-    # 0) Hyper-Kvasir: *_tool_<uuid>.jpg|png|jpeg
     m = re.search(r'(tool_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(?:png|jpg|jpeg))$', low, re.IGNORECASE)
     if m:
         start = m.start(1)
         return s[start:]  # 'tool_<uuid>.ext'
 
-    # 1) LDPolyps: informative_0153.jpg / uninformative_0153.png ...
     m = re.search(r'((?:informative|uninformative)_[0-9]{2,8}\.(?:png|jpg|jpeg))$', low, re.IGNORECASE)
     if m:
         start = m.start(1)
         return s[start:]
 
-    # 2) 일반 숫자 꼬리: ..._0153.jpg / ..._000153.png
     m = re.search(r'(_[0-9]{2,8}\.(?:png|jpg|jpeg))$', low, re.IGNORECASE)
     if m:
-        start = m.start(1) + 1  # 언더스코어 제외
+        start = m.start(1) + 1
         return s[start:]
 
-    # 3) Nerthus 잔존 규칙: 'bowel_'부터
     i = low.find("bowel_")
     if i != -1:
         return s[i:]
 
-    # 4) score 패턴 (예: ..._score_3-0_00000125.jpg)
     m = re.search(r'([A-Za-z0-9\-]+_\d+_score_[A-Za-z0-9\-]+_\d{4,8}\.(png|jpg|jpeg))$', s, re.IGNORECASE)
     if m:
         return m.group(1)
 
-    # 5) 언더스코어 기준 꼬리 3~4 토큰
+
     parts = s.split("_")
     if len(parts) >= 4:
         return "_".join(parts[-4:])
 
-    # 6) 최후수단: 뒤 60자
     return s[-60:]
 
 
-# ========== 인덱스 구성 (속도 핵심) ==========
+# ========== index build ==========
 
 def build_file_index(root: Path, exts: List[str]) -> Tuple[Dict[str, Path], DefaultDict[str, List[Path]], DefaultDict[int, List[Path]], DefaultDict[str, List[Path]]]:
     """
-    - name_idx: 파일명(lower) -> Path
+    - name_idx: Filename(lower) -> Path
     - tail_idx: core_tail(lower) -> [Path]
-    - number_idx: 끝 숫자(int) -> [Path]
-    - uuid_idx: 순수 uuid(lower) -> [Path]
+    - number_idx: end_num(int) -> [Path]
+    - uuid_idx: only uuid(lower) -> [Path]
     """
     exts = [e.lower() for e in exts]
     name_idx: Dict[str, Path] = {}
@@ -188,7 +187,7 @@ def build_file_index(root: Path, exts: List[str]) -> Tuple[Dict[str, Path], Defa
     print(f"[INFO] Indexed files: total={total}, unique_names={len(name_idx)}, with_number_tail={sum(len(v) for v in number_idx.values())}, with_uuid={sum(len(v) for v in uuid_idx.values())}")
     return name_idx, tail_idx, number_idx, uuid_idx
 
-# ========== 입력 CSV 모음 찾기 ==========
+# ========== find input csv ==========
 
 def iter_excels(args) -> Iterable[Path]:
     yielded = set()
@@ -217,7 +216,7 @@ def iter_excels(args) -> Iterable[Path]:
                     if rp not in yielded:
                         yielded.add(rp); yield rp
 
-# ========== CSV 읽기 ==========
+# ========== Read CSV ==========
 
 def read_table(excel_path: Path) -> pd.DataFrame:
     suffix = excel_path.suffix.lower()
@@ -231,7 +230,7 @@ def read_table(excel_path: Path) -> pd.DataFrame:
 def safe_makedirs(p: Path):
     p.mkdir(parents=True, exist_ok=True)
 
-# ========== 매칭 로직 (인덱스 우선) ==========
+# ========== Matching Logic (Index) ==========
 
 def resolve_src_by_index(
     excel_path: Path,
@@ -248,7 +247,6 @@ def resolve_src_by_index(
 
     nm = normalize_case(target_name)
 
-    # 0) UUID 매칭 (Hyper-Kvasir 최우선) — rglob 없이 즉시 결정
     muuid = UUID_RE.search(target_name)
     if muuid:
         key = muuid.group(0).lower()
@@ -260,12 +258,10 @@ def resolve_src_by_index(
                 candu = sorted(candu, key=lambda p: (0 if raw_low in normalize_case(str(p)) else 1, len(str(p))))
             return candu[0]
 
-    # 1) 파일명 정확 일치
     hit = name_idx.get(nm)
     if hit and hit.exists() and dataset_ok(hit, hints):
         return hit
 
-    # 2) 부분 일치 (core-tail)
     if allow_substring:
         core = normalize_case(extract_core_tail(target_name))
         cand = tail_idx.get(core, [])
@@ -279,7 +275,6 @@ def resolve_src_by_index(
                 cand = sorted(cand, key=lambda p: (0 if raw_low in normalize_case(str(p)) else 1, len(str(p))))
             return cand[0]
 
-    # 3) 숫자 꼬리 매칭 — 단, UUID가 있는 파일명은 숫자매칭 금지
     if not looks_like_uuid_name(target_name):
         mnum = re.search(r'(\d{1,8})\.(png|jpg|jpeg|bmp|tif|tiff)$', nm)
         if mnum:
@@ -292,7 +287,6 @@ def resolve_src_by_index(
                     cand2 = sorted(cand2, key=lambda p: (0 if raw_low in normalize_case(str(p)) else 1, len(str(p))))
                 return cand2[0]
 
-    # 4) 최후 수단 rglob — UUID가 있으면 이미 위에서 끝났으므로 여기선 UUID 없는 케이스만
     candidate = canonicalize_path_like(root / (raw_path or ""))
     search_root = candidate
     if not search_root.exists():
@@ -318,7 +312,7 @@ def resolve_src_by_index(
         return best
     except (PermissionError, OSError):
         return None
-# ========== 메인 처리 ==========
+# ========== Main Process ==========
 
 def process_excel(
     excel_path: Path,
@@ -332,7 +326,7 @@ def process_excel(
     strip_mode: str,
     strip_keywords: List[str],
     allow_substring: bool,
-    ext_priority: List[str],  # (인덱스 기반이라 사실 필요성↓, 인터페이스 유지)
+    ext_priority: List[str], 
     dry_run: bool,
     name_idx: Dict[str, Path],
     tail_idx: DefaultDict[str, List[Path]],
@@ -358,7 +352,6 @@ def process_excel(
         target_name = str(row[name_col]).strip()
         label = str(row[label_col]).strip()
 
-        # Split 결정: split_col > split_fixed > 'train'
         split = None
         if split_col and split_col in df.columns:
             split = str(row[split_col]).strip() or None
@@ -371,14 +364,11 @@ def process_excel(
             print(f"[WARN] {excel_path.name} Row {idx}: empty path or filename -> skip")
             skipped += 1
             continue
-
-        # auto-strip 여부(경로 힌트 정규화에만 사용)
         if path_should_strip_output(excel_path, raw_path, strip_mode, strip_keywords):
             raw_path_use = str(canonicalize_path_like(Path(raw_path)))
         else:
             raw_path_use = raw_path
 
-        # 인덱스 기반으로 빠르게 찾기
         src_file = resolve_src_by_index(
             excel_path=excel_path,
             raw_path=raw_path_use,
@@ -399,7 +389,7 @@ def process_excel(
             continue
 
         try:
-            dest_dir = dest / split / label   # <-- 상위에 split 폴더, 그 안에 label 폴더
+            dest_dir = dest / split / label  
             safe_makedirs(dest_dir)
             dest_path = dest_dir / target_name
 
@@ -431,30 +421,30 @@ def process_excel(
 
 def main():
     ap = argparse.ArgumentParser(description="Ultra-fast batch rename & move using a prebuilt file index.")
-    # 입력 소스
+    # input
     ap.add_argument("--excel", action="append", help="Single Excel/CSV path. Can be provided multiple times.")
     ap.add_argument("--excel-glob", nargs="*", help="Glob pattern(s) for Excel/CSV.")
     ap.add_argument("--excel-dir", help="Directory containing Excel/CSV files.")
     ap.add_argument("--pattern", help="Comma-separated patterns inside --excel-dir.")
 
-    # 공통 파라미터
+    # default parameter
     ap.add_argument("--root", required=True, type=Path, help="Root directory that actually contains image files.")
     ap.add_argument("--dest", required=True, type=Path, help="Destination root (files moved into '<dest>/<split>/<label>/').")
     ap.add_argument("--path-col", default="Path", help="Column containing source path hint (dir or file).")
     ap.add_argument("--name-col", default="Filename", help="Column containing desired filename.")
     ap.add_argument("--label-col", default="Label", help="Column containing label (used as subfolder).")
 
-    # split 제어
+    # split
     ap.add_argument("--split-col", default=None, help="Column name that contains split name (train/val/test/label).")
     ap.add_argument("--split-fixed", default=None, help="Fixed split name if there's no split column.")
 
-    # strip-output 제어
+    # strip-output
     ap.add_argument("--strip-output-mode", choices=["never", "always", "auto"], default="auto",
                     help="When to strip 'output' segments in *hint* paths. auto: only if keyword matches.")
     ap.add_argument("--strip-keywords", default="nerthus",
                     help="Comma-separated keywords to trigger strip in auto mode.")
 
-    # 매칭/기타
+    # Matching/others
     ap.add_argument("--allow-substring", action="store_true", help="Allow substring match when exact filename not found.")
     ap.add_argument("--ext-priority", nargs="*", default=[".png", ".jpg", ".jpeg"], help="(kept for compatibility)")
     ap.add_argument("--dry-run", action="store_true", help="Log actions without moving files.")
@@ -462,7 +452,6 @@ def main():
 
     strip_keywords = [s.strip() for s in (args.strip_keywords or "").split(",") if s.strip()]
 
-    # 0) 사전 인덱스 구축 (한 번만!)
     print(f"[INFO] Building file index under: {args.root}")
     name_idx, tail_idx, number_idx, uuid_idx = build_file_index(args.root, args.ext_priority)
     print(f"[INFO] Indexed files: {len(name_idx)} (unique names), {sum(len(v) for v in tail_idx.values())} (by core-tail)")
