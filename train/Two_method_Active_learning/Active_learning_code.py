@@ -344,7 +344,7 @@ for idx in range(args.rounds):
     train_sizes.append(len(train_dataset))
     used_indices.update(random_sample_indices)
 
-    # ====== 추가: 정밀도, 재현율, F1, Specificity, AUROC ======
+    # ====== Precision, Recall, F1, Specificity, AUROC ======
     all_preds = []
     all_labels = []
     all_probs = []
