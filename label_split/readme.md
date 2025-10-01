@@ -32,28 +32,33 @@ To split and organize OpenDataset labels:
 
 ## 📌 Example
 
-```bash
+
 # Step 1: Extract video to frame and save each frame folder
+
+```bash
 python videoframe.py --root ./where_you_save_our_hospital_data_folder(SNUH_Colonscopy, CNUH_Colonoscopy) --mode scaled_time --start-sec 0 --save-images 1
+'''
 
 # Step 2: Split by video label
-python split_frame_label.py --root ./where_you_save_our_hospital_video_data_folder
 
+```bash
+python split_frame_label.py --root ./where_you_save_our_hospital_video_data_folder
+'''
 # Step 3: For OpenDataset
 Nerthus
 
-'''
+```bash
 python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_nerthus_nerthus-dataset-frames_output*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --strip-output-mode always --strip-keywords nerthus
 '''
 
 Endomapper
 
-'''
+```bash
 python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_endomapper_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
 '''
 
 Hyper-kvasir
 
-'''
+```bash
 python opendataset_split.py --excel-glob "\{Opendataset_Excel_Path}\*_hyper-kvasir_*.csv" --root "\data\" --dest "\data\output" --path-col Path --name-col Filename --label-col Label --allow-substring
 '''
