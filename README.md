@@ -38,6 +38,7 @@ Detailed information about the dataset structure and labels will be provided her
 ### 🔹 Data Split
 
 Before starting training, make sure to split the dataset (see the label_split folder).
+Supervised learning - train - train, val, unlabeled test - test
 
 ---
 
