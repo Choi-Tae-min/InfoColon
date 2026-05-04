@@ -29,7 +29,7 @@ if args.num_classes == 2:
 elif args.num_classes == 6:
     class_names = ['bad_light', 'blurry', 'bubble', 'obstacles', 'tool', 'wall']
 else:
-    class_names = ['bad_light', 'blurry', 'bubble', 'obstacles', 'tool', 'wall', 'informative']
+    class_names = ['bad_light', 'blurry', 'bubble', 'informative', 'obstacles', 'tool', 'wall']
 
 # ---------------------- Dataset ----------------------
 class TestImageDataset(Dataset):
