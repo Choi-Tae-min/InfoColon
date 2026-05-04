@@ -9,8 +9,6 @@ We update inference code as soon as possible.
 Pretrained checkpoints are available at:
 https://drive.google.com/drive/folders/1cYxTxC941pSB2_AwotUh4UIWDFu-P0Yn?usp=sharing
 
-The inference code will be uploaded soon.
-
 ---
 
 ## 📚 Table of Contents
@@ -21,7 +19,7 @@ The inference code will be uploaded soon.
     - [Data Split](#data-split)
     - [Training Options](#training-options)
     - [Testing](#testing)
-
+    - [Inference](#inference)
 ---
 
 ## ⚙️ Requirements
@@ -149,7 +147,16 @@ This will load the trained model and generate performance metrics on the test se
 ---
 
 ## 🧪 Inference
-- The inference code will be uploaded soon.
+
+To inference on your dataset, use:
+
+```bash
+python inference.py   --input_dir <your_unlabeled_folder_path> \
+                      --checkpoint_path <checkpoint_path> \
+                      --num_classes [2,6,7] \
+                      --output_csv results/predictions.csv
+
+```
 
 ---
 
