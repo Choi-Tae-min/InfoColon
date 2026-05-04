@@ -3,6 +3,14 @@
 This repository contains the classification dataset and related training utilities for the **InfoColon** project, designed for informative frame classification in colonoscopy.
 Please note that the code may undergo further revisions in the future.
 
+We update inference code as soon as possible.
+
+## Checkpoints
+Pretrained checkpoints are available at:
+https://drive.google.com/drive/folders/1cYxTxC941pSB2_AwotUh4UIWDFu-P0Yn?usp=sharing
+
+The inference code will be uploaded soon.
+
 ---
 
 ## 📚 Table of Contents
@@ -133,10 +141,15 @@ python Active_learning_code.py --num_class [2,6,7]
 To evaluate on the test dataset, use:
 
 ```bash
-python inference.py
+python test.py --test_dir <test_data_path> --checkpoint_path <checkpoint path> --batch_size 32 --num_classes [2,6,7] --gpus 0
 ```
 
 This will load the trained model and generate performance metrics on the test set.
+
+---
+
+## 🧪 Inference
+- The inference code will be uploaded soon.
 
 ---
 
